@@ -1,0 +1,5 @@
+{
+  "name": "GW3",
+  "description": "A full-stack crowdfunding platform for creators and backers, featuring Stripe payments and Supabase backend.",
+  "requestFramePermissions": []
+}
