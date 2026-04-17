@@ -483,7 +483,7 @@ export default function CreateCampaign({ session }: { session: Session | null })
     return (
       <div className="container mx-auto px-4 py-20 text-center">
         <h2 className="text-2xl font-bold mb-4">Please log in to create a campaign</h2>
-        <Button onClick={() => navigate("/auth")}>Go to Login</Button>
+        <Button onClick={() => navigate("/auth/login")}>Go to Login</Button>
       </div>
     );
   }

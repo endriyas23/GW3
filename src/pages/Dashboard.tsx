@@ -52,7 +52,7 @@ export default function Dashboard({ session }: { session: Session | null }) {
 
   useEffect(() => {
     if (!session) {
-      navigate("/auth");
+      navigate("/auth/login");
       return;
     }
 

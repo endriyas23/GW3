@@ -80,7 +80,7 @@ export default function CreatorDashboard({ session }: CreatorDashboardProps) {
 
   useEffect(() => {
     if (!session) {
-      navigate("/auth");
+      navigate("/auth/login");
       return;
     }
 

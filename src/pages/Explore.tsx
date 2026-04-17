@@ -29,7 +29,16 @@ import {
   Sparkles,
   Video,
   Gift,
-  Globe
+  Globe,
+  Cpu,
+  Palette,
+  Film,
+  Music,
+  Gamepad2,
+  PenTool,
+  Utensils,
+  GraduationCap,
+  HeartPulse
 } from "lucide-react";
 import { 
   Select,
@@ -72,9 +81,21 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { debounce } from "lodash";
 import { Session } from "@supabase/supabase-js";
 
-const CATEGORIES = [
-  "All", "Technology", "Creative", "Community", "Film", "Music", "Games", "Design", "Food", "Education", "Health"
+const CATEGORY_ITEMS = [
+  { name: "All", icon: LayoutGrid },
+  { name: "Technology", icon: Cpu },
+  { name: "Creative", icon: Palette },
+  { name: "Community", icon: Globe },
+  { name: "Film", icon: Film },
+  { name: "Music", icon: Music },
+  { name: "Games", icon: Gamepad2 },
+  { name: "Design", icon: PenTool },
+  { name: "Food", icon: Utensils },
+  { name: "Education", icon: GraduationCap },
+  { name: "Health", icon: HeartPulse }
 ];
+
+const CATEGORIES = CATEGORY_ITEMS.map(c => c.name);
 
 const COUNTRIES = [
   { code: "US", name: "United States", flag: "🇺🇸" },
@@ -311,13 +332,17 @@ export default function Explore({ session }: { session: Session | null }) {
     try {
       const { data, error } = await supabase
         .from("campaigns")
-        .select("category");
+        .select("category")
+        .eq("status", "live");
       
       if (error) throw error;
       
       const counts: Record<string, number> = {};
-      data.forEach(c => {
-        counts[c.category] = (counts[c.category] || 0) + 1;
+      data?.forEach(c => {
+        if (c.category) {
+          const cat = c.category.toLowerCase();
+          counts[cat] = (counts[cat] || 0) + 1;
+        }
       });
       setCategoryCounts(counts);
     } catch (error) {
@@ -369,7 +394,7 @@ export default function Explore({ session }: { session: Session | null }) {
       }
 
       if (category !== "All") {
-        supabaseQuery = supabaseQuery.eq("category", category);
+        supabaseQuery = supabaseQuery.eq("category", category.toLowerCase());
       }
 
       if (query) {
@@ -732,20 +757,35 @@ export default function Explore({ session }: { session: Session | null }) {
 
             <ScrollArea className="w-full whitespace-nowrap pb-4">
               <div className="flex gap-3">
-                {CATEGORIES.map(cat => (
-                  <Button
-                    key={cat}
-                    variant={category.toLowerCase() === cat.toLowerCase() ? "default" : "outline"}
-                    className={`rounded-full px-6 font-bold transition-all ${
-                      category.toLowerCase() === cat.toLowerCase() 
-                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
-                        : "hover:border-primary hover:text-primary"
-                    }`}
-                    onClick={() => handleCategoryClick(cat)}
-                  >
-                    {cat}
-                  </Button>
-                ))}
+                {CATEGORY_ITEMS.map(cat => {
+                  const isSelected = category.toLowerCase() === cat.name.toLowerCase();
+                  const count = cat.name === "All" ? totalCount : (categoryCounts[cat.name.toLowerCase()] || 0);
+                  
+                  return (
+                    <Button
+                      key={cat.name}
+                      variant={isSelected ? "default" : "outline"}
+                      className={`rounded-full px-6 py-6 font-bold transition-all relative group ${
+                        isSelected 
+                          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
+                          : "hover:border-primary hover:text-primary bg-background"
+                      }`}
+                      onClick={() => handleCategoryClick(cat.name)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <cat.icon className={`w-4 h-4 ${isSelected ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary"}`} />
+                        <span>{cat.name}</span>
+                        {count > 0 && (
+                          <span className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full ${
+                            isSelected ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
+                          }`}>
+                            {count}
+                          </span>
+                        )}
+                      </div>
+                    </Button>
+                  );
+                })}
               </div>
               <ScrollBar orientation="horizontal" />
             </ScrollArea>
@@ -780,30 +820,32 @@ export default function Explore({ session }: { session: Session | null }) {
                 </AccordionTrigger>
                 <AccordionContent className="pt-2 pb-6">
                   <div className="space-y-1">
-                    {CATEGORIES.map(cat => {
-                      const isSelected = category.toLowerCase() === cat.toLowerCase();
+                    {CATEGORY_ITEMS.map(cat => {
+                      const isSelected = category.toLowerCase() === cat.name.toLowerCase();
+                      const count = cat.name === "All" ? totalCount : (categoryCounts[cat.name.toLowerCase()] || 0);
+                      
                       return (
                         <div 
-                          key={cat} 
+                          key={cat.name} 
                           className={`flex items-center space-x-3 group cursor-pointer p-2 rounded-xl transition-all ${
                             isSelected ? "bg-primary/5 text-primary" : "hover:bg-muted/50"
                           }`} 
-                          onClick={() => handleCategoryClick(cat)}
+                          onClick={() => handleCategoryClick(cat.name)}
                         >
-                          <Checkbox 
-                            id={`filter-cat-${cat}`} 
-                            checked={isSelected}
-                            className={isSelected ? "border-primary data-[state=checked]:bg-primary" : ""}
-                          />
+                          <div className={`p-1.5 rounded-lg transition-colors ${
+                            isSelected ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground group-hover:bg-background group-hover:text-primary"
+                          }`}>
+                            <cat.icon className="w-3.5 h-3.5" />
+                          </div>
                           <Label 
-                            htmlFor={`filter-cat-${cat}`} 
+                            htmlFor={`filter-cat-${cat.name}`} 
                             className={`text-sm font-bold cursor-pointer transition-colors flex justify-between w-full ${
                               isSelected ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
                             }`}
                           >
-                            <span>{cat}</span>
+                            <span>{cat.name}</span>
                             <span className={`font-medium text-[10px] ${isSelected ? "text-primary/70" : "text-muted-foreground/60"}`}>
-                              {cat === "All" ? totalCount : (categoryCounts[cat] || 0)}
+                              {count}
                             </span>
                           </Label>
                         </div>
