@@ -35,13 +35,6 @@ import {
   MapPin,
   ExternalLink
 } from "lucide-react";
-import { 
-  Popover, 
-  PopoverContent, 
-  PopoverHeader, 
-  PopoverTitle, 
-  PopoverTrigger 
-} from "@/components/ui/popover";
 import { Campaign, Reward, Profile } from "@/types/database";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -520,54 +513,6 @@ export default function CampaignDetail() {
                 <Heart className={`w-4 h-4 mr-2 ${isSaved ? 'fill-primary' : ''}`} />
                 {isSaved ? "Saved to Watchlist" : "Save this Project"}
               </Button>
-
-              <Popover>
-                <PopoverTrigger render={
-                  <Button variant="outline" className="w-full h-12 font-bold rounded-2xl">
-                    <Share2 className="w-4 h-4 mr-2" />
-                    Share Project
-                  </Button>
-                } />
-                <PopoverContent className="w-64 p-4 rounded-2xl shadow-2xl border-border/40" align="end">
-                  <PopoverHeader className="mb-4">
-                    <PopoverTitle className="text-base font-bold">Share this campaign</PopoverTitle>
-                  </PopoverHeader>
-                  <div className="grid gap-2">
-                    <Button 
-                      variant="ghost" 
-                      className="w-full justify-start gap-3 h-11 rounded-xl hover:bg-primary/5 hover:text-primary font-bold"
-                      onClick={() => handleShare("twitter")}
-                    >
-                      <Twitter className="w-4 h-4 text-[#1DA1F2]" />
-                      Share on Twitter
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      className="w-full justify-start gap-3 h-11 rounded-xl hover:bg-primary/5 hover:text-primary font-bold"
-                      onClick={() => handleShare("facebook")}
-                    >
-                      <Facebook className="w-4 h-4 text-[#1877F2]" />
-                      Share on Facebook
-                    </Button>
-                    <Separator className="my-1" />
-                    <div className="flex gap-2">
-                      <Input 
-                        value={window.location.href} 
-                        readOnly 
-                        className="h-10 rounded-xl text-xs bg-muted/50 border-none font-medium"
-                      />
-                      <Button 
-                        size="icon" 
-                        variant="ghost"
-                        className="h-10 w-10 shrink-0 rounded-xl hover:bg-primary/5 hover:text-primary"
-                        onClick={() => handleShare("copy")}
-                      >
-                        <LinkIcon className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
               
               <div className="flex items-start gap-3 p-4 bg-muted/30 rounded-xl">
                 <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
