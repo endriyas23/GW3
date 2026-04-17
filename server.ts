@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import { createClient } from "@supabase/supabase-js";
+import rateLimit from "express-rate-limit";
 
 dotenv.config();
 
@@ -26,6 +27,10 @@ async function startServer() {
   const PORT = 3000;
 
   const supabase = getSupabase();
+  const staticFileLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+  });
 
   app.use(express.json());
 
@@ -83,7 +88,7 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*", (req, res) => {
+    app.get("*", staticFileLimiter, (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
