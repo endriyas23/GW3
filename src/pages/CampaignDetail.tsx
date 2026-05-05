@@ -33,7 +33,9 @@ import {
   AlertTriangle,
   PlusCircle,
   MapPin,
-  ExternalLink
+  ExternalLink,
+  User,
+  ShieldCheck
 } from "lucide-react";
 import { Campaign, Reward, Profile } from "@/types/database";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
@@ -602,48 +604,59 @@ export default function CampaignDetail() {
 
                 {/* About the Creator Section */}
                 <div className="mt-16 pt-16 border-t not-prose">
-                  <h2 className="text-2xl font-black mb-6">About the Creator</h2>
-                  <div className="flex flex-col sm:flex-row items-center sm:items-start gap-8 p-8 bg-muted/30 rounded-[2rem] border border-border/40 shadow-sm relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-primary/10 transition-colors"></div>
+                  <div className="flex items-center justify-between mb-8">
+                    <h2 className="text-3xl font-black tracking-tight flex items-center gap-3">
+                      <User className="w-8 h-8 text-primary" />
+                      About the Creator
+                    </h2>
+                  </div>
+                  
+                  <div className="flex flex-col md:flex-row gap-10 p-10 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-border/60 shadow-sm relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32 group-hover:bg-primary/10 transition-colors"></div>
                     
-                    <Link to={`/profile/${creator?.id}`} className="shrink-0 relative">
-                      <Avatar className="h-24 w-24 border-4 border-background shadow-lg hover:scale-105 transition-transform duration-300">
-                        <AvatarImage src={creator?.avatar_url || ""} />
-                        <AvatarFallback className="text-3xl bg-primary text-white font-black">
-                          {creator?.full_name?.charAt(0) || "C"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="absolute -bottom-1 -right-1 bg-white dark:bg-slate-900 p-1.5 rounded-full shadow-sm">
-                        <div className="bg-green-500 w-3 h-3 rounded-full border-2 border-white dark:border-slate-900"></div>
-                      </div>
-                    </Link>
+                    <div className="shrink-0 flex flex-col items-center gap-4">
+                      <Link to={`/profile/${creator?.id}`} className="relative">
+                        <Avatar className="h-32 w-32 border-4 border-background shadow-xl hover:scale-105 transition-transform duration-300">
+                          <AvatarImage src={creator?.avatar_url || ""} />
+                          <AvatarFallback className="text-4xl bg-primary text-white font-black">
+                            {creator?.full_name?.charAt(0) || "C"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="absolute bottom-1 right-1 bg-white dark:bg-slate-900 p-2 rounded-full shadow-lg border border-border/50">
+                          <div className="bg-green-500 w-4 h-4 rounded-full border-2 border-white dark:border-slate-900"></div>
+                        </div>
+                      </Link>
+                    </div>
 
-                    <div className="flex-1 space-y-4 text-center sm:text-left">
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
-                          <Link to={`/profile/${creator?.id}`} className="text-2xl font-black hover:text-primary transition-colors tracking-tight">
+                    <div className="flex-1 space-y-6">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <Link to={`/profile/${creator?.id}`} className="text-2xl font-black tracking-tight hover:text-primary transition-colors">
                             {creator?.full_name || "Anonymous Creator"}
                           </Link>
                           {creator?.location && (
-                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground bg-muted px-2.5 py-1 rounded-full border border-border/50 flex items-center gap-1.5">
-                              <MapPin className="w-3 h-3 text-primary" /> {creator.location}
+                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground bg-muted px-3 py-1.5 rounded-full border border-border/50 flex items-center gap-1.5">
+                              <MapPin className="w-3.5 h-3.5 text-primary" /> {creator.location}
                             </span>
                           )}
                         </div>
-                        <p className="text-sm font-bold text-muted-foreground tracking-tight">Verified Creator • Joined {creator?.created_at ? format(new Date(creator.created_at), "MMMM yyyy") : "Recently"}</p>
+                        <p className="text-sm font-bold text-muted-foreground tracking-tight flex items-center gap-2">
+                          <ShieldCheck className="w-4 h-4 text-primary" />
+                          Verified Creator • Joined {creator?.created_at ? format(new Date(creator.created_at), "MMMM yyyy") : "Recently"}
+                        </p>
                       </div>
 
-                      <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
-                        {creator?.bio || "This creator is passionate about bringing innovative ideas to life. Follow their profile to stay updated on their latest projects and contributions to the GW3 community."}
+                      <p className="text-lg text-slate-600 dark:text-slate-400 leading-relaxed font-medium whitespace-pre-wrap">
+                        {creator?.bio || "This creator is passionate about bringing innovative ideas to life. Follow their profile to stay updated on their latest projects and contributions to the community."}
                       </p>
 
-                      <div className="pt-2 flex flex-wrap items-center justify-center sm:justify-start gap-4">
+                      <div className="pt-4 flex flex-wrap gap-4">
                         <Link to={`/profile/${creator?.id}`}>
-                          <Button variant="outline" size="sm" className="font-bold rounded-xl h-10 px-6 hover:bg-primary hover:text-white transition-all shadow-sm">
-                            View Full Profile <ExternalLink className="ml-2 w-3.5 h-3.5" />
+                          <Button className="font-bold rounded-xl h-12 px-8 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all">
+                            View Full Profile <ExternalLink className="ml-2 w-4 h-4" />
                           </Button>
                         </Link>
-                        <Button variant="ghost" size="sm" className="font-bold text-muted-foreground hover:text-foreground">
+                        <Button variant="outline" className="font-bold rounded-xl h-12 px-8">
                           Contact Creator
                         </Button>
                       </div>

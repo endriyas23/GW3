@@ -30,6 +30,7 @@ import {
   Heading3,
   Strikethrough,
   Code,
+  SquareTerminal,
   Minus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -153,6 +154,14 @@ export default function RichTextEditor({ content, onChange, placeholder, onImage
           className={cn(editor.isActive('code') && 'bg-muted text-primary')}
         >
           <Code className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+          className={cn(editor.isActive('codeBlock') && 'bg-muted text-primary')}
+        >
+          <SquareTerminal className="h-4 w-4" />
         </Button>
         <div className="w-px h-4 bg-border mx-1 self-center" />
         <Button

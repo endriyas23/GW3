@@ -189,7 +189,7 @@ export default function Explore({ session }: { session: Session | null }) {
   );
 
   const fetchSuggestions = async (val: string) => {
-    if (!val.trim()) {
+    if (!val.trim() || !isSupabaseConfigured) {
       setMatchingCampaigns([]);
       setMatchingCreators([]);
       setMatchingCategories([]);
@@ -197,12 +197,13 @@ export default function Explore({ session }: { session: Session | null }) {
     }
 
     try {
-      // Fetch matching campaigns
+      // Fetch matching campaigns (only live ones)
       const { data: campaigns } = await supabase
         .from("campaigns")
         .select("id, title, cover_image_url")
+        .eq("status", "live")
         .ilike("title", `%${val}%`)
-        .limit(3);
+        .limit(4);
       
       setMatchingCampaigns(campaigns || []);
 
@@ -211,7 +212,7 @@ export default function Explore({ session }: { session: Session | null }) {
         .from("profiles")
         .select("id, full_name, avatar_url")
         .ilike("full_name", `%${val}%`)
-        .limit(3);
+        .limit(4);
       
       setMatchingCreators(creators || []);
 
@@ -667,14 +668,17 @@ export default function Explore({ session }: { session: Session | null }) {
                           {matchingCampaigns.length > 0 && (
                             <CommandGroup heading="Campaigns">
                               {matchingCampaigns.map(c => (
-                                <CommandItem key={c.id} onSelect={() => {
+                                <CommandItem key={c.id} value={`campaign-${c.id}`} onSelect={() => {
                                   navigate(`/campaign/${c.id}`);
                                   addToRecentSearches(searchInput);
                                   setSearchFocused(false);
                                 }}>
                                   <div className="flex items-center gap-3">
                                     <img src={c.cover_image_url || "/placeholder.svg"} className="w-10 h-10 rounded object-cover" referrerPolicy="no-referrer" />
-                                    <span className="font-medium">{c.title}</span>
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">{c.title}</span>
+                                      <span className="text-xs text-muted-foreground">Campaign</span>
+                                    </div>
                                   </div>
                                 </CommandItem>
                               ))}
@@ -683,17 +687,20 @@ export default function Explore({ session }: { session: Session | null }) {
                           {matchingCreators.length > 0 && (
                             <CommandGroup heading="Creators">
                               {matchingCreators.map(creator => (
-                                <CommandItem key={creator.id} onSelect={() => {
+                                <CommandItem key={creator.id} value={`creator-${creator.id}`} onSelect={() => {
                                   navigate(`/profile/${creator.id}`);
                                   addToRecentSearches(searchInput);
                                   setSearchFocused(false);
                                 }}>
                                   <div className="flex items-center gap-3">
-                                    <Avatar className="h-8 w-8">
-                                      <AvatarImage src={creator.avatar_url} />
-                                      <AvatarFallback>{creator.full_name?.charAt(0)}</AvatarFallback>
+                                    <Avatar className="h-8 w-8 relative overflow-hidden">
+                                      <AvatarImage src={creator.avatar_url || ""} className="object-cover w-full h-full" />
+                                      <AvatarFallback>{creator.full_name?.charAt(0) || "U"}</AvatarFallback>
                                     </Avatar>
-                                    <span className="font-medium">{creator.full_name}</span>
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">{creator.full_name || "Creator"}</span>
+                                      <span className="text-xs text-muted-foreground">Creator</span>
+                                    </div>
                                   </div>
                                 </CommandItem>
                               ))}
@@ -702,7 +709,7 @@ export default function Explore({ session }: { session: Session | null }) {
                           {matchingCategories.length > 0 && (
                             <CommandGroup heading="Categories">
                               {matchingCategories.map(cat => (
-                                <CommandItem key={cat} onSelect={() => {
+                                <CommandItem key={cat} value={`category-${cat}`} onSelect={() => {
                                   handleCategoryClick(cat);
                                   addToRecentSearches(searchInput);
                                   setSearchFocused(false);

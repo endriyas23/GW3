@@ -21,7 +21,10 @@ import {
   ExternalLink,
   Globe,
   Twitter,
-  Github
+  Github,
+  User,
+  ShieldCheck,
+  CheckCircle2
 } from "lucide-react";
 import { format } from "date-fns";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -145,16 +148,36 @@ export default function PublicProfile() {
       </div>
 
       <div className="container mx-auto px-4 max-w-5xl mt-12 space-y-12">
-        <div className="grid md:grid-cols-3 gap-12">
-          {/* Sidebar / Bio */}
-          <div className="md:col-span-1 space-y-8">
-            <div className="space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">About the Creator</h3>
-              <p className="text-sm font-medium leading-relaxed text-slate-600">
-                {profile.bio || "This user hasn't added a bio yet."}
+        {/* About the Creator Section */}
+        <div className="bg-white rounded-[2.5rem] p-10 shadow-sm border border-border/40 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32 group-hover:bg-primary/10 transition-colors"></div>
+          <div className="relative z-10 space-y-6">
+            <h2 className="text-2xl font-black tracking-tight flex items-center gap-3">
+              <User className="w-6 h-6 text-primary" />
+              About the Creator
+            </h2>
+            <div className="prose prose-slate dark:prose-invert max-w-none">
+              <p className="text-lg leading-relaxed text-slate-600 dark:text-slate-400 font-medium whitespace-pre-wrap">
+                {profile.bio || "This creator is passionate about bringing innovative ideas to life. They haven't added a detailed bio yet, but you can check out their projects below to see what they're working on."}
               </p>
             </div>
+            
+            <div className="pt-4 flex flex-wrap gap-4">
+              <div className="px-4 py-2 bg-muted rounded-xl text-xs font-bold text-muted-foreground flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-green-500" />
+                Identity Verified
+              </div>
+              <div className="px-4 py-2 bg-muted rounded-xl text-xs font-bold text-muted-foreground flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-primary" />
+                KYC Completed
+              </div>
+            </div>
+          </div>
+        </div>
 
+        <div className="grid md:grid-cols-3 gap-12">
+          {/* Sidebar / Socials */}
+          <div className="md:col-span-1 space-y-8">
             <div className="space-y-4">
               <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Connect</h3>
               <div className="flex gap-3">

@@ -414,7 +414,7 @@ export default function CreateCampaign({ session }: { session: Session | null })
       await supabase.from("rewards").delete().eq("campaign_id", id);
       if (rewardsToSave.length > 0) {
         const rewardsToInsert = rewardsToSave.map(r => {
-          // We omit the ID and missing columns to avoid conflicts and schema errors
+          // We omit the ID and undefined columns to avoid conflicts and schema errors
           const { id: _, items: __, ...rewardData } = r as any;
           return {
             ...rewardData,
@@ -447,6 +447,14 @@ export default function CreateCampaign({ session }: { session: Session | null })
   };
 
   const handleNext = async () => {
+    // Validation for step 1: Funding
+    if (currentStep === 1) {
+      if (!campaign.funding_goal || campaign.funding_goal <= 0) {
+        toast.error("Funding goal must be a positive number greater than zero.");
+        return;
+      }
+    }
+
     setSaving(true);
     await Promise.all([
       saveCampaignData(),
@@ -752,12 +760,19 @@ export default function CreateCampaign({ session }: { session: Session | null })
                         <Input 
                           id="goal" 
                           type="number"
+                          min="1"
                           placeholder="5000" 
                           value={campaign.funding_goal}
                           onChange={(e) => updateCampaign({ funding_goal: parseFloat(e.target.value) })}
-                          className="h-12 pl-12 text-lg font-bold"
+                          className={cn(
+                            "h-12 pl-12 text-lg font-bold",
+                            (campaign.funding_goal === undefined || campaign.funding_goal <= 0) && "border-destructive focus-visible:ring-destructive"
+                          )}
                         />
                       </div>
+                      {(campaign.funding_goal === undefined || campaign.funding_goal <= 0) && (
+                        <p className="text-xs text-destructive font-medium mt-1">Goal must be greater than zero.</p>
+                      )}
                       <p className="text-xs text-muted-foreground">How much do you need to make this happen?</p>
                     </div>
                     <div className="space-y-3">

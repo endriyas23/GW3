@@ -3,7 +3,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Link } from "react-router-dom";
+import { Trans, useTranslation } from "react-i18next";
+import { Link, useNavigate } from "react-router-dom";
 import { 
   ArrowRight, 
   TrendingUp, 
@@ -46,6 +47,8 @@ const CATEGORIES = [
 ];
 
 export default function Home() {
+  const navigate = useNavigate();
+  const { t } = useTranslation();
   const [featuredCampaigns, setFeaturedCampaigns] = useState<Campaign[]>([]);
   const [trendingCampaigns, setTrendingCampaigns] = useState<Campaign[]>([]);
   const [recentCampaigns, setRecentCampaigns] = useState<Campaign[]>([]);
@@ -127,22 +130,24 @@ export default function Home() {
             className="max-w-3xl"
           >
             <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white mb-6 leading-[1.05]">
-              Bring your <span className="text-primary bg-clip-text text-transparent bg-gradient-to-r from-primary to-indigo-400">creative ideas</span> to life.
+              <Trans i18nKey="home_hero_title">
+                Bring your <span className="text-primary bg-clip-text text-transparent bg-gradient-to-r from-primary to-indigo-400">creative ideas</span> to life.
+              </Trans>
             </h1>
             <p className="text-xl text-zinc-300 mb-10 leading-relaxed max-w-xl font-medium">
-              Join a global community of creators and backers. Fund the next generation of technology, design, and social impact.
+              {t("home_hero_subtitle") || "Join a global community of creators and backers. Fund the next generation of technology, design, and social impact."}
             </p>
             
             <div className="relative max-w-xl mb-10 group shadow-2xl shadow-primary/10 rounded-2xl">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-zinc-400 group-focus-within:text-primary transition-colors" />
               <Input 
-                placeholder="Search for projects, creators, or categories..." 
+                placeholder={t("search_placeholder") || "Search for projects, creators, or categories..."}
                 className="h-16 pl-14 pr-36 text-lg bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:bg-white focus:text-zinc-950 transition-all duration-300 rounded-2xl ring-offset-zinc-950"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && searchQuery.trim()) {
-                    window.location.href = `/explore?q=${encodeURIComponent(searchQuery.trim())}`;
+                    navigate(`/explore?q=${encodeURIComponent(searchQuery.trim())}`);
                   }
                 }}
               />
@@ -150,7 +155,7 @@ export default function Home() {
                 className="absolute right-2 top-2 bottom-2 px-8 rounded-xl font-bold transition-all hover:scale-[0.98]"
                 onClick={() => {
                   if (searchQuery.trim()) {
-                    window.location.href = `/explore?q=${encodeURIComponent(searchQuery.trim())}`;
+                    navigate(`/explore?q=${encodeURIComponent(searchQuery.trim())}`);
                   }
                 }}
               >
@@ -160,10 +165,10 @@ export default function Home() {
 
             <div className="flex flex-wrap gap-4">
               <Button size="lg" className="h-14 px-8 text-base font-semibold shadow-[0_0_40px_rgba(79,70,229,0.3)] hover:shadow-[0_0_60px_rgba(79,70,229,0.5)] transition-all duration-300" render={<Link to="/explore" />} nativeButton={false}>
-                Explore Campaigns
+                {t("explore_campaigns") || "Explore Campaigns"}
               </Button>
               <Button size="lg" variant="outline" className="h-14 px-8 text-base font-semibold text-white border-white/20 hover:bg-white/10 hover:border-white/40 backdrop-blur-md transition-all duration-300" render={<Link to="/how-it-works" />} nativeButton={false}>
-                How It Works
+                {t("how_it_works") || "How It Works"}
               </Button>
             </div>
           </motion.div>

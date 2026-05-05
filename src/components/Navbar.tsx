@@ -10,8 +10,10 @@ import {
   LogOut, 
   LayoutDashboard,
   ShieldCheck,
-  Heart
+  Heart,
+  Globe
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +29,11 @@ import { ModeToggle } from "@/components/mode-toggle";
 export default function Navbar({ session }: { session: Session | null }) {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
+  const { t, i18n } = useTranslation();
+
+  const handleLanguageChange = (lang: string) => {
+    i18n.changeLanguage(lang);
+  };
 
   useEffect(() => {
     if (session) {
@@ -59,11 +66,11 @@ export default function Navbar({ session }: { session: Session | null }) {
       <div className="container mx-auto px-4 h-[72px] flex items-center justify-between">
         <div className="flex items-center gap-10">
           <Link to="/" className="flex items-center gap-2">
-            <span className="text-2xl font-extrabold tracking-tight text-primary">GW3</span>
+            <span className="text-2xl font-extrabold tracking-tight text-primary">{t("gw3") || "GW3"}</span>
           </Link>
           <div className="hidden md:flex items-center gap-8">
-            <Link to="/browse" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">Explore</Link>
-            <Link to="/how-it-works" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">How it works</Link>
+            <Link to="/browse" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">{t("explore") || "Explore"}</Link>
+            <Link to="/how-it-works" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">{t("how_it_works") || "How it works"}</Link>
           </div>
         </div>
 
@@ -76,12 +83,25 @@ export default function Navbar({ session }: { session: Session | null }) {
             <Link to="/create">
               <Button variant="ghost" className="hidden md:flex items-center gap-2 font-semibold hover:bg-primary/5 hover:text-primary transition-colors">
                 <PlusCircle className="w-4 h-4" />
-                Start a Campaign
+                {t("start_campaign") || "Start a Campaign"}
               </Button>
             </Link>
           )}
 
           <div className="h-5 w-px bg-border/60 hidden md:block"></div>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger render={
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <Globe className="h-[1.2rem] w-[1.2rem]" />
+                <span className="sr-only">Toggle language</span>
+              </Button>
+            } />
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleLanguageChange('en')}>English</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleLanguageChange('am')}>አማርኛ (Amharic)</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <ModeToggle />
 
@@ -109,7 +129,7 @@ export default function Navbar({ session }: { session: Session | null }) {
                   <>
                     <DropdownMenuItem onClick={() => navigate("/dashboard")} className="cursor-pointer">
                       <LayoutDashboard className="mr-2 h-4 w-4" />
-                      <span>Creator Dashboard</span>
+                      <span>{t("dashboard") || "Creator Dashboard"}</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate("/dashboard/backer")} className="cursor-pointer">
                       <Heart className="mr-2 h-4 w-4" />
@@ -119,18 +139,18 @@ export default function Navbar({ session }: { session: Session | null }) {
                 )}
                 <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer">
                   <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
+                  <span>{t("profile") || "Profile"}</span>
                 </DropdownMenuItem>
                 {isAdmin && (
                   <DropdownMenuItem onClick={() => navigate("/admin")} className="cursor-pointer">
                     <ShieldCheck className="mr-2 h-4 w-4" />
-                    <span>Admin Panel</span>
+                    <span>{t("admin_dashboard") || "Admin Panel"}</span>
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
+                  <span>{t("logout") || "Log out"}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

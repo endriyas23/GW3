@@ -133,6 +133,7 @@ export default function Admin({ session }: { session: Session | null }) {
       const { data: allCamps } = await supabase
         .from("campaigns")
         .select("*")
+        .neq("status", "draft")
         .order("created_at", { ascending: false });
       
       setAllCampaigns(allCamps || []);
@@ -188,6 +189,7 @@ export default function Admin({ session }: { session: Session | null }) {
       const { data: recentCampaigns } = await supabase
         .from("campaigns")
         .select("id, title, created_at, creator:profiles(full_name)")
+        .neq("status", "draft")
         .order("created_at", { ascending: false })
         .limit(5);
         
