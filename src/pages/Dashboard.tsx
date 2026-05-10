@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { Session } from "@supabase/supabase-js";
+import { motion, AnimatePresence } from "motion/react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
@@ -49,6 +51,9 @@ export default function Dashboard({ session }: { session: Session | null }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [campaignToDelete, setCampaignToDelete] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
 
   useEffect(() => {
     if (!session) {
@@ -108,36 +113,29 @@ export default function Dashboard({ session }: { session: Session | null }) {
     try {
       setIsDeleting(true);
       
-      // 1. Delete comment reports first (they depend on comments)
-      const { data: campaignComments } = await supabase
+      // 1. Delete reports related to the campaign's comments
+      const { data: campaignComments, error: commentsFetchError } = await supabase
         .from("comments")
         .select("id")
         .eq("campaign_id", campaignToDelete);
       
+      if (commentsFetchError) throw commentsFetchError;
+
       if (campaignComments && campaignComments.length > 0) {
         const commentIds = campaignComments.map(c => c.id);
-        await supabase.from("comment_reports").delete().in("comment_id", commentIds);
+        const { error: commentReportsError } = await supabase
+          .from("reports")
+          .delete()
+          .eq("target_type", "comment")
+          .in("target_id", commentIds);
+        if (commentReportsError) throw commentReportsError;
       }
 
-      // 2. Delete other related data sequentially
-      const tablesToDelete = [
-        { name: "pledges", col: "campaign_id" },
-        { name: "rewards", col: "campaign_id" },
-        { name: "campaign_team_members", col: "campaign_id" },
-        { name: "campaign_faqs", col: "campaign_id" },
-        { name: "stretch_goals", col: "campaign_id" },
-        { name: "updates", col: "campaign_id" },
-        { name: "comments", col: "campaign_id" },
-      ];
+      // 2. Delete reports linked directly to the campaign
+      const { error: reportsError } = await supabase.from("reports").delete().eq("target_id", campaignToDelete).eq("target_type", "campaign");
+      if (reportsError) throw reportsError;
 
-      for (const table of tablesToDelete) {
-        await supabase.from(table.name).delete().eq(table.col, campaignToDelete);
-      }
-
-      // 3. Delete reports
-      await supabase.from("reports").delete().eq("target_id", campaignToDelete).eq("target_type", "campaign");
-
-      // 4. Finally delete the campaign
+      // 3. Finally delete the campaign (others will cascade)
       const { error } = await supabase
         .from("campaigns")
         .delete()
@@ -153,6 +151,66 @@ export default function Dashboard({ session }: { session: Session | null }) {
     } finally {
       setIsDeleting(false);
       setCampaignToDelete(null);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    
+    try {
+      setIsBulkDeleting(true);
+      
+      for (const campaignId of selectedIds) {
+        // 1. Delete reports related to comments
+        const { data: campaignComments, error: fetchErr } = await supabase
+          .from("comments")
+          .select("id")
+          .eq("campaign_id", campaignId);
+        
+        if (fetchErr) throw fetchErr;
+
+        if (campaignComments && campaignComments.length > 0) {
+          const commentIds = campaignComments.map(c => c.id);
+          const { error: relErr1 } = await supabase
+            .from("reports")
+            .delete()
+            .eq("target_type", "comment")
+            .in("target_id", commentIds);
+          if (relErr1) throw relErr1;
+        }
+
+        // 2. Reports linked directly to the campaign
+        const { error: relErr2 } = await supabase.from("reports").delete().eq("target_id", campaignId).eq("target_type", "campaign");
+        if (relErr2) throw relErr2;
+
+        // 3. Campaign (everything else cascades)
+        const { error } = await supabase.from("campaigns").delete().eq("id", campaignId);
+        if (error) throw error;
+      }
+
+      toast.success(`${selectedIds.length} campaigns deleted successfully`);
+      setMyCampaigns(prev => prev.filter(c => !selectedIds.includes(c.id)));
+      setSelectedIds([]);
+    } catch (error: any) {
+      console.error("Error bulk deleting campaigns:", error);
+      toast.error("Failed to delete some campaigns: " + error.message);
+    } finally {
+      setIsBulkDeleting(false);
+      setShowBulkConfirm(false);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === myCampaigns.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(myCampaigns.map(c => c.id));
     }
   };
 
@@ -187,7 +245,12 @@ export default function Dashboard({ session }: { session: Session | null }) {
         </TabsList>
 
         <TabsContent value="campaigns">
-          {loading ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            {loading ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[1, 2, 3].map(i => (
                 <div key={i} className="space-y-4">
@@ -198,74 +261,143 @@ export default function Dashboard({ session }: { session: Session | null }) {
               ))}
             </div>
           ) : myCampaigns.length > 0 ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {myCampaigns.map(campaign => (
-                <Card key={campaign.id} className="overflow-hidden rounded-3xl border-2 hover:border-primary transition-all group">
-                  <div className="h-48 bg-muted relative overflow-hidden">
-                    {campaign.cover_image_url ? (
-                      <img src={campaign.cover_image_url} alt={campaign.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                        <LayoutDashboard className="w-12 h-12 text-primary/20" />
-                      </div>
-                    )}
-                    <div className="absolute top-4 right-4 flex gap-2">
-                      <Badge className="font-bold uppercase tracking-widest text-[10px] px-3 py-1">
-                        {campaign.status}
-                      </Badge>
-                      
-                      <DropdownMenu>
-                        <DropdownMenuTrigger render={
-                          <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full bg-white/90 hover:bg-white shadow-sm">
-                            <MoreVertical className="h-3 w-3" />
-                          </Button>
-                        } />
-                        <DropdownMenuContent align="end" className="w-40 rounded-xl">
-                          <DropdownMenuItem onClick={() => navigate(`/dashboard/campaigns/${campaign.id}`)}>
-                            <BarChart3 className="mr-2 h-4 w-4" /> Manage
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate(`/create/${campaign.id}`)}>
-                            <Edit2 className="mr-2 h-4 w-4" /> Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => setCampaignToDelete(campaign.id)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Checkbox 
+                    id="select-all" 
+                    checked={selectedIds.length === myCampaigns.length && myCampaigns.length > 0} 
+                    onCheckedChange={toggleSelectAll}
+                    className="rounded-md h-5 w-5 border-2"
+                  />
+                  <label htmlFor="select-all" className="text-sm font-bold cursor-pointer select-none">
+                    Select All ({myCampaigns.length} Projects)
+                  </label>
+                </div>
+                
+                <AnimatePresence>
+                  {selectedIds.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      className="flex items-center gap-3"
+                    >
+                      <span className="text-sm font-bold text-primary">
+                        {selectedIds.length} items selected
+                      </span>
+                      <Button 
+                        variant="destructive" 
+                        size="sm" 
+                        className="rounded-xl font-bold h-9 bg-destructive/10 text-destructive hover:bg-destructive hover:text-white"
+                        onClick={() => setShowBulkConfirm(true)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Bulk Delete
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="rounded-xl font-bold h-9"
+                        onClick={() => setSelectedIds([])}
+                      >
+                        Cancel
+                      </Button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {myCampaigns.map((campaign, index) => (
+                  <motion.div
+                    key={campaign.id}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <Card className={`h-full overflow-hidden rounded-3xl border-2 transition-all group relative ${selectedIds.includes(campaign.id) ? 'border-primary bg-primary/5' : 'hover:border-primary hover:shadow-xl hover:-translate-y-1'}`}>
+                      <div className="absolute top-4 left-4 z-10">
+                      <Checkbox 
+                        checked={selectedIds.includes(campaign.id)} 
+                        onCheckedChange={() => toggleSelect(campaign.id)}
+                        className="rounded-md h-5 w-5 border-2 bg-background/90 data-[state=checked]:bg-primary data-[state=checked]:border-primary transition-colors"
+                      />
                     </div>
-                  </div>
-                  <CardHeader className="p-6">
-                    <CardTitle className="text-xl font-bold line-clamp-1 mb-1">{campaign.title}</CardTitle>
-                    <CardDescription className="font-medium text-primary/60">{campaign.category}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-6 pt-0 space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs font-black uppercase tracking-widest">
-                        <span>${campaign.amount_raised.toLocaleString()} raised</span>
-                        <span>{Math.round(campaign.funding_goal > 0 ? (campaign.amount_raised / campaign.funding_goal) * 100 : 0)}%</span>
+                    <div className="h-48 bg-muted relative overflow-hidden">
+                      {campaign.cover_image_url ? (
+                        <img src={campaign.cover_image_url} alt={campaign.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+                          <LayoutDashboard className="w-12 h-12 text-primary/20" />
+                        </div>
+                      )}
+                      <div className="absolute top-4 right-4 flex gap-2">
+                        <Badge className="font-bold uppercase tracking-widest text-[10px] px-3 py-1">
+                          {campaign.status}
+                        </Badge>
+                        
+                        <DropdownMenu>
+                          <DropdownMenuTrigger render={
+                            <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full bg-background/90 hover:bg-background shadow-sm">
+                              <MoreVertical className="h-3 w-3" />
+                            </Button>
+                          } />
+                          <DropdownMenuContent align="end" className="w-40 rounded-xl">
+                            <DropdownMenuItem onClick={() => navigate(`/dashboard/campaigns/${campaign.id}`)}>
+                              <BarChart3 className="mr-2 h-4 w-4" /> Manage
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/create/${campaign.id}`)}>
+                              <Edit2 className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => setCampaignToDelete(campaign.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
-                      <Progress value={campaign.funding_goal > 0 ? (campaign.amount_raised / campaign.funding_goal) * 100 : 0} className="h-2" />
                     </div>
-                  </CardContent>
-                  <CardFooter className="p-6 border-t bg-muted/20 flex gap-3">
-                    <Button variant="outline" size="sm" className="flex-grow font-bold rounded-xl" nativeButton={false} render={
-                      <Link to={`/dashboard/campaigns/${campaign.id}`}>
-                        <BarChart3 className="w-4 h-4 mr-2" />
-                        Manage
-                      </Link>
-                    } />
-                    <Button variant="ghost" size="sm" className="font-bold rounded-xl" nativeButton={false} render={
-                      <Link to={`/campaigns/${campaign.id}`}>
-                        <ExternalLink className="w-4 h-4" />
-                      </Link>
-                    } />
-                  </CardFooter>
-                </Card>
-              ))}
+                    <CardHeader className="p-6">
+                      <CardTitle className="text-xl font-bold line-clamp-1 mb-1">{campaign.title}</CardTitle>
+                      <CardDescription className="font-medium text-primary/60">{campaign.category}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-6 pt-0 space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs font-black uppercase tracking-widest">
+                          <span>${campaign.amount_raised.toLocaleString()} raised</span>
+                          <span>{Math.round(campaign.funding_goal > 0 ? (campaign.amount_raised / campaign.funding_goal) * 100 : 0)}%</span>
+                        </div>
+                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                          <motion.div 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${Math.min(campaign.funding_goal > 0 ? (campaign.amount_raised / campaign.funding_goal) * 100 : 0, 100)}%` }}
+                            transition={{ duration: 1, ease: "easeOut" }}
+                            className="h-full bg-primary"
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="p-6 border-t bg-muted/20 flex gap-3">
+                      <Button variant="outline" size="sm" className="flex-grow font-bold rounded-xl" nativeButton={false} render={
+                        <Link to={`/dashboard/campaigns/${campaign.id}`}>
+                          <BarChart3 className="w-4 h-4 mr-2" />
+                          Manage
+                        </Link>
+                      } />
+                      <Button variant="ghost" size="sm" className="font-bold rounded-xl" nativeButton={false} render={
+                        <Link to={`/campaigns/${campaign.id}`}>
+                          <ExternalLink className="w-4 h-4" />
+                        </Link>
+                      } />
+                    </CardFooter>
+                  </Card>
+                </motion.div>
+                ))}
+              </div>
             </div>
           ) : (
             <EmptyState 
@@ -276,10 +408,16 @@ export default function Dashboard({ session }: { session: Session | null }) {
               actionLink={!isAdmin ? "/create" : undefined}
             />
           )}
+          </motion.div>
         </TabsContent>
 
         <TabsContent value="pledges">
-          {loading ? (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            {loading ? (
             <div className="space-y-6">
               {[1, 2].map(i => <Skeleton key={i} className="h-40 rounded-3xl" />)}
             </div>
@@ -338,6 +476,7 @@ export default function Dashboard({ session }: { session: Session | null }) {
               actionLink="/explore"
             />
           )}
+          </motion.div>
         </TabsContent>
       </Tabs>
       
@@ -354,6 +493,29 @@ export default function Dashboard({ session }: { session: Session | null }) {
             <Button variant="outline" onClick={() => setCampaignToDelete(null)}>Cancel</Button>
             <Button variant="destructive" onClick={handleDeleteCampaign} disabled={isDeleting}>
               {isDeleting ? "Deleting..." : "Delete Campaign"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showBulkConfirm} onOpenChange={(open) => !open && setShowBulkConfirm(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="w-5 h-5" />
+              Confirm Bulk Deletion
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              You are about to delete <span className="font-bold text-foreground">{selectedIds.length}</span> campaigns.
+              This action is <span className="font-bold text-destructive">irreversible</span> and will delete all associated data for all selected projects.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setShowBulkConfirm(false)} className="rounded-xl font-bold">
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleBulkDelete} disabled={isBulkDeleting} className="rounded-xl font-bold">
+              {isBulkDeleting ? "Deleting..." : "Permanently Delete Selected"}
             </Button>
           </DialogFooter>
         </DialogContent>

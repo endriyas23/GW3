@@ -58,6 +58,7 @@ import { format, addDays } from "date-fns";
 import { Campaign, Reward, TeamMember, FAQ, StretchGoal, Profile } from "@/types/database";
 import RichTextEditor from "@/components/RichTextEditor";
 import { cn } from "@/lib/utils";
+import { CATEGORY_TREE } from "@/lib/constants";
 
 const STEPS = [
   { id: "basics", title: "Basics", time: "~3 min" },
@@ -70,18 +71,7 @@ const STEPS = [
   { id: "submit", title: "Submit", time: "" },
 ];
 
-const CATEGORIES = [
-  { name: "Technology", icon: "💻" },
-  { name: "Creative", icon: "🎨" },
-  { name: "Community", icon: "🤝" },
-  { name: "Film", icon: "🎬" },
-  { name: "Music", icon: "🎵" },
-  { name: "Games", icon: "🎮" },
-  { name: "Design", icon: "📐" },
-  { name: "Food", icon: "🍕" },
-  { name: "Education", icon: "📚" },
-  { name: "Health", icon: "🏥" },
-];
+
 
 export default function CreateCampaign({ session }: { session: Session | null }) {
   const { id } = useParams();
@@ -536,7 +526,22 @@ export default function CreateCampaign({ session }: { session: Session | null })
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" className="hidden sm:flex" onClick={() => window.open(`/campaign/${id}`, "_blank")}>
+            {id && (
+              <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={async () => {
+                if (!window.confirm("Are you sure you want to delete this project? This action cannot be undone.")) return;
+                try {
+                  const { error } = await supabase.from("campaigns").delete().eq("id", id);
+                  if (error) throw error;
+                  toast.success("Project deleted successfully");
+                  navigate("/dashboard");
+                } catch (err: any) {
+                  toast.error("Failed to delete project: " + err.message);
+                }
+              }}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+            <Button variant="outline" size="sm" className="hidden sm:flex" onClick={() => window.open(`/campaign/${id}`, "_blank")} disabled={!id}>
               <Eye className="mr-2 h-4 w-4" /> Preview
             </Button>
             <Button size="sm" className="font-bold" disabled={overallProgress < 100}>
@@ -640,14 +645,14 @@ export default function CreateCampaign({ session }: { session: Session | null })
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-3">
                       <Label htmlFor="category" className="text-base font-bold">Category</Label>
-                      <Select value={campaign.category} onValueChange={(v) => updateCampaign({ category: v })}>
+                      <Select value={campaign.category} onValueChange={(v) => updateCampaign({ category: v, subcategory: null })}>
                         <SelectTrigger className="h-12">
                           <SelectValue placeholder="Select a category" />
                         </SelectTrigger>
                         <SelectContent>
-                          {CATEGORIES.map(cat => (
+                          {CATEGORY_TREE.map(cat => (
                             <SelectItem key={cat.name} value={cat.name.toLowerCase()}>
-                              <span className="mr-2">{cat.icon}</span> {cat.name}
+                              <span className="mr-2">{cat.emoji}</span> {cat.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -655,13 +660,22 @@ export default function CreateCampaign({ session }: { session: Session | null })
                     </div>
                     <div className="space-y-3">
                       <Label htmlFor="subcategory" className="text-base font-bold">Subcategory</Label>
-                      <Input 
-                        id="subcategory" 
-                        placeholder="e.g. Kitchen Gadgets" 
-                        value={campaign.subcategory || ""}
-                        onChange={(e) => updateCampaign({ subcategory: e.target.value })}
-                        className="h-12"
-                      />
+                      <Select 
+                        value={campaign.subcategory || ""} 
+                        onValueChange={(v) => updateCampaign({ subcategory: v })}
+                        disabled={!campaign.category}
+                      >
+                        <SelectTrigger className="h-12">
+                          <SelectValue placeholder="Select a subcategory" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {campaign.category && CATEGORY_TREE.find(c => c.name.toLowerCase() === campaign.category?.toLowerCase())?.subcategories.map(sub => (
+                            <SelectItem key={sub} value={sub.toLowerCase()}>
+                              {sub}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -739,6 +753,21 @@ export default function CreateCampaign({ session }: { session: Session | null })
                         </>
                       )}
                     </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label htmlFor="pitch_video" className="text-base font-bold">Pitch Video URL (Optional)</Label>
+                    <div className="relative">
+                      <Video className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input 
+                        id="pitch_video" 
+                        placeholder="e.g. https://www.youtube.com/watch?v=..." 
+                        value={campaign.pitch_video_url || ""}
+                        onChange={(e) => updateCampaign({ pitch_video_url: e.target.value })}
+                        className="h-12 pl-12"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Add a YouTube link to help backers understand your project better. This will be prominently displayed on your campaign page.</p>
                   </div>
                 </div>
               </div>
@@ -917,6 +946,8 @@ export default function CreateCampaign({ session }: { session: Session | null })
                           description: "", 
                           estimated_delivery: format(addDays(new Date(), 90), "MMMM yyyy"), 
                           shipping_type: "none",
+                          shipping_regions: [],
+                          worldwide_shipping_cost: 0,
                           quantity_limit: null,
                           image_url: null,
                           quantity_claimed: 0
@@ -978,6 +1009,8 @@ export default function CreateCampaign({ session }: { session: Session | null })
                           description: "", 
                           estimated_delivery: format(addDays(new Date(), 90), "MMMM yyyy"), 
                           shipping_type: "none",
+                          shipping_regions: [],
+                          worldwide_shipping_cost: 0,
                           quantity_limit: null,
                           image_url: null,
                           quantity_claimed: 0
@@ -1088,54 +1121,96 @@ export default function CreateCampaign({ session }: { session: Session | null })
 
                             {rewards[editingReward].shipping_type === 'specific' && (
                               <div className="space-y-4">
-                                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Shipping Regions</Label>
-                                {(rewards[editingReward].shipping_regions || []).map((region, idx) => (
-                                  <div key={idx} className="flex items-center gap-2">
-                                    <Input 
-                                      placeholder="Region (e.g. US, EU)" 
-                                      value={region.region}
-                                      onChange={(e) => {
-                                        const newRegions = [...(rewards[editingReward].shipping_regions || [])];
-                                        newRegions[idx].region = e.target.value;
-                                        updateReward(editingReward, { shipping_regions: newRegions });
-                                      }}
-                                    />
-                                    <div className="relative w-32 shrink-0">
-                                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                      <Input 
-                                        type="number" 
-                                        value={region.cost}
-                                        onChange={(e) => {
-                                          const newRegions = [...(rewards[editingReward].shipping_regions || [])];
-                                          newRegions[idx].cost = parseFloat(e.target.value) || 0;
-                                          updateReward(editingReward, { shipping_regions: newRegions });
-                                        }}
-                                        className="pl-9"
-                                      />
-                                    </div>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="icon"
-                                      onClick={() => {
-                                        const newRegions = [...(rewards[editingReward].shipping_regions || [])];
-                                        newRegions.splice(idx, 1);
-                                        updateReward(editingReward, { shipping_regions: newRegions });
-                                      }}
-                                    >
-                                      <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                  </div>
-                                ))}
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => {
-                                    const newRegions = [...(rewards[editingReward].shipping_regions || []), { region: "", cost: 0 }];
-                                    updateReward(editingReward, { shipping_regions: newRegions });
-                                  }}
-                                >
-                                  <Plus className="h-4 w-4 mr-2" /> Add Region
-                                </Button>
+                                <div className="flex justify-between items-center">
+                                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Shipping Regions</Label>
+                                  <Popover>
+                                    <PopoverTrigger>
+                                      <Button variant="ghost" size="sm" className="h-7 text-[10px] font-bold uppercase tracking-widest text-primary">
+                                        <Plus className="h-3 w-3 mr-1" /> Quick Add
+                                      </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-48 p-2" align="end">
+                                      <div className="grid grid-cols-1 gap-1">
+                                        {['USA', 'Canada', 'European Union', 'United Kingdom', 'Australia', 'Japan', 'Rest of World'].map(region => (
+                                          <Button 
+                                            key={region} 
+                                            variant="ghost" 
+                                            size="sm" 
+                                            className="justify-start font-medium text-xs h-8"
+                                            onClick={() => {
+                                              const newRegions = [...(rewards[editingReward].shipping_regions || []), { region, cost: 0 }];
+                                              updateReward(editingReward, { shipping_regions: newRegions });
+                                            }}
+                                          >
+                                            {region}
+                                          </Button>
+                                        ))}
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                </div>
+                                <div className="space-y-3">
+                                  {(rewards[editingReward].shipping_regions || []).map((region, idx) => (
+                                    <Card key={idx} className="p-3 bg-muted/20 border-none shadow-none group relative">
+                                      <div className="flex items-center gap-3">
+                                        <div className="flex-grow space-y-1">
+                                          <Label className="text-[10px] font-bold text-muted-foreground uppercase">Region Name</Label>
+                                          <Input 
+                                            placeholder="Region (e.g. US, EU)" 
+                                            value={region.region}
+                                            onChange={(e) => {
+                                              const newRegions = [...(rewards[editingReward].shipping_regions || [])];
+                                              newRegions[idx] = { ...newRegions[idx], region: e.target.value };
+                                              updateReward(editingReward, { shipping_regions: newRegions });
+                                            }}
+                                            className="h-9 bg-background border-none shadow-sm font-medium"
+                                          />
+                                        </div>
+                                        <div className="w-28 space-y-1">
+                                          <Label className="text-[10px] font-bold text-muted-foreground uppercase">Cost</Label>
+                                          <div className="relative">
+                                            <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                            <Input 
+                                              type="number" 
+                                              value={region.cost}
+                                              onChange={(e) => {
+                                                const newRegions = [...(rewards[editingReward].shipping_regions || [])];
+                                                newRegions[idx] = { ...newRegions[idx], cost: parseFloat(e.target.value) || 0 };
+                                                updateReward(editingReward, { shipping_regions: newRegions });
+                                              }}
+                                              className="h-9 pl-8 bg-background border-none shadow-sm font-bold"
+                                            />
+                                          </div>
+                                        </div>
+                                        <div className="pt-5">
+                                          <Button 
+                                            variant="ghost" 
+                                            size="icon"
+                                            className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                            onClick={() => {
+                                              const newRegions = [...(rewards[editingReward].shipping_regions || [])];
+                                              newRegions.splice(idx, 1);
+                                              updateReward(editingReward, { shipping_regions: newRegions });
+                                            }}
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </Card>
+                                  ))}
+                                  
+                                  <Button 
+                                    variant="outline" 
+                                    className="w-full border-dashed border-2 text-muted-foreground hover:text-primary hover:border-primary transition-all font-bold h-10"
+                                    onClick={() => {
+                                      const newRegions = [...(rewards[editingReward].shipping_regions || []), { region: "", cost: 0 }];
+                                      updateReward(editingReward, { shipping_regions: newRegions });
+                                    }}
+                                  >
+                                    <Plus className="h-4 w-4 mr-2" /> Add custom region
+                                  </Button>
+                                </div>
                               </div>
                             )}
                           </div>

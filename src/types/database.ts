@@ -8,6 +8,9 @@ export type Profile = {
   default_shipping_address?: string | null;
   role: 'user' | 'admin' | 'moderator';
   kyc_verified: boolean;
+  website_url?: string | null;
+  twitter_url?: string | null;
+  github_url?: string | null;
   created_at: string;
 };
 

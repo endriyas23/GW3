@@ -26,21 +26,41 @@ import {
   ShieldCheck,
   CheckCircle2
 } from "lucide-react";
+import { Session } from "@supabase/supabase-js";
 import { format } from "date-fns";
 import Breadcrumbs from "@/components/Breadcrumbs";
 
-export default function PublicProfile() {
+export default function PublicProfile({ session }: { session: Session | null }) {
   const { id } = useParams<{ id: string }>();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [createdCampaigns, setCreatedCampaigns] = useState<Campaign[]>([]);
   const [supportedCount, setSupportedCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
       fetchProfileData();
     }
   }, [id]);
+
+  const handleDeleteCampaign = async (campaignId: string) => {
+    if (!window.confirm("Are you sure you want to delete this campaign? This action cannot be undone.")) {
+      return;
+    }
+    
+    setIsDeleting(campaignId);
+    try {
+      const { error } = await supabase.from("campaigns").delete().eq("id", campaignId);
+      if (error) throw error;
+      setCreatedCampaigns(prev => prev.filter(c => c.id !== campaignId));
+    } catch (error) {
+      console.error("Error deleting campaign:", error);
+      alert("Failed to delete campaign");
+    } finally {
+      setIsDeleting(null);
+    }
+  };
 
   const fetchProfileData = async () => {
     setLoading(true);
@@ -56,11 +76,17 @@ export default function PublicProfile() {
       setProfile(profileData);
 
       // Fetch created campaigns
-      const { data: campaigns } = await supabase
+      let campaignsQuery = supabase
         .from("campaigns")
         .select("*")
         .eq("creator_id", id)
         .order("created_at", { ascending: false });
+        
+      if (session?.user?.id !== id) {
+        campaignsQuery = campaignsQuery.in("status", ["live", "successful"]);
+      }
+      
+      const { data: campaigns } = await campaignsQuery;
       
       setCreatedCampaigns(campaigns || []);
 
@@ -108,12 +134,12 @@ export default function PublicProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB] pb-24">
+    <div className="min-h-screen bg-background pb-24">
       {/* Header / Hero */}
-      <div className="bg-white border-b pt-16 pb-12">
+      <div className="bg-card border-b pt-16 pb-12">
         <div className="container mx-auto px-4 max-w-5xl">
           <div className="flex flex-col items-center text-center">
-            <Avatar className="w-32 h-32 border-4 border-white shadow-2xl mb-6">
+            <Avatar className="w-32 h-32 border-4 border-background shadow-2xl mb-6">
               <AvatarImage src={profile.avatar_url} />
               <AvatarFallback className="text-4xl font-black bg-primary text-white">
                 {profile.full_name?.charAt(0).toUpperCase()}
@@ -135,7 +161,7 @@ export default function PublicProfile() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center gap-3 mb-6">
               <Badge variant="secondary" className="rounded-full px-4 py-1.5 font-bold bg-primary/5 text-primary border-none">
                 {createdCampaigns.length} Projects Created
               </Badge>
@@ -143,13 +169,19 @@ export default function PublicProfile() {
                 {supportedCount} Projects Supported
               </Badge>
             </div>
+
+            {session?.user.id === profile.id && (
+              <Button variant="outline" className="rounded-full font-bold px-6" render={<Link to="/profile" />} nativeButton={false}>
+                Edit Profile
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
       <div className="container mx-auto px-4 max-w-5xl mt-12 space-y-12">
         {/* About the Creator Section */}
-        <div className="bg-white rounded-[2.5rem] p-10 shadow-sm border border-border/40 relative overflow-hidden group">
+        <div className="bg-card rounded-[2.5rem] p-10 shadow-sm border border-border/40 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32 group-hover:bg-primary/10 transition-colors"></div>
           <div className="relative z-10 space-y-6">
             <h2 className="text-2xl font-black tracking-tight flex items-center gap-3">
@@ -161,36 +193,37 @@ export default function PublicProfile() {
                 {profile.bio || "This creator is passionate about bringing innovative ideas to life. They haven't added a detailed bio yet, but you can check out their projects below to see what they're working on."}
               </p>
             </div>
-            
-            <div className="pt-4 flex flex-wrap gap-4">
-              <div className="px-4 py-2 bg-muted rounded-xl text-xs font-bold text-muted-foreground flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-green-500" />
-                Identity Verified
-              </div>
-              <div className="px-4 py-2 bg-muted rounded-xl text-xs font-bold text-muted-foreground flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-primary" />
-                KYC Completed
-              </div>
-            </div>
           </div>
         </div>
 
         <div className="grid md:grid-cols-3 gap-12">
-          {/* Sidebar / Socials */}
+          {/* Sidebar */}
           <div className="md:col-span-1 space-y-8">
-            <div className="space-y-4">
-              <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Connect</h3>
-              <div className="flex gap-3">
-                <Button variant="outline" size="icon" className="rounded-xl h-10 w-10">
-                  <Globe className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="icon" className="rounded-xl h-10 w-10">
-                  <Twitter className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="icon" className="rounded-xl h-10 w-10">
-                  <Github className="w-4 h-4" />
-                </Button>
+            {(profile.website_url || profile.twitter_url || profile.github_url) && (
+              <div className="space-y-4">
+                <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Connect</h3>
+                <div className="flex flex-wrap gap-3">
+                  {profile.website_url && (
+                    <Button variant="outline" size="icon" className="rounded-xl h-10 w-10" render={<a href={profile.website_url} target="_blank" rel="noopener noreferrer" />} nativeButton={false}>
+                      <Globe className="w-4 h-4" />
+                    </Button>
+                  )}
+                  {profile.twitter_url && (
+                    <Button variant="outline" size="icon" className="rounded-xl h-10 w-10" render={<a href={profile.twitter_url} target="_blank" rel="noopener noreferrer" />} nativeButton={false}>
+                      <Twitter className="w-4 h-4" />
+                    </Button>
+                  )}
+                  {profile.github_url && (
+                    <Button variant="outline" size="icon" className="rounded-xl h-10 w-10" render={<a href={profile.github_url} target="_blank" rel="noopener noreferrer" />} nativeButton={false}>
+                      <Github className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
+            )}
+            
+            <div className="space-y-4">
+               {/* Any other sidebar stuff can go here */}
             </div>
           </div>
 
@@ -219,13 +252,26 @@ export default function PublicProfile() {
                           </div>
                           <div className="flex items-center justify-between mt-4">
                             <span className="text-xs font-black text-primary uppercase tracking-widest">
-                              {Math.round((campaign.amount_raised / campaign.funding_goal) * 100)}% Funded
+                              {campaign.status === 'draft' ? 'DRAFT' : `${Math.round((campaign.amount_raised / campaign.funding_goal) * 100)}% Funded`}
                             </span>
-                            <Button variant="ghost" size="sm" className="h-8 rounded-xl font-bold text-xs" nativeButton={false} render={
-                              <Link to={`/campaigns/${campaign.id}`}>
-                                View Project <ExternalLink className="ml-1.5 w-3 h-3" />
-                              </Link>
-                            } />
+                            <div className="flex gap-2">
+                              {session?.user?.id === profile.id ? (
+                                <>
+                                  <Button variant="outline" size="sm" className="h-8 rounded-xl font-bold text-xs" nativeButton={false} render={<Link to={`/create/${campaign.id}`} />} disabled={isDeleting === campaign.id}>
+                                    Edit
+                                  </Button>
+                                  <Button variant="destructive" size="sm" className="h-8 rounded-xl font-bold text-xs" onClick={() => handleDeleteCampaign(campaign.id)} disabled={isDeleting === campaign.id}>
+                                    {isDeleting === campaign.id ? 'Deleting...' : 'Delete'}
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button variant="ghost" size="sm" className="h-8 rounded-xl font-bold text-xs" nativeButton={false} render={
+                                  <Link to={`/campaigns/${campaign.id}`}>
+                                    View Project <ExternalLink className="ml-1.5 w-3 h-3" />
+                                  </Link>
+                                } />
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -233,7 +279,7 @@ export default function PublicProfile() {
                   ))}
                 </div>
               ) : (
-                <div className="bg-white rounded-3xl p-12 text-center border-2 border-dashed border-muted">
+                <div className="bg-card rounded-3xl p-12 text-center border-2 border-dashed border-muted">
                   <p className="text-sm font-bold text-muted-foreground">No projects created yet.</p>
                 </div>
               )}
@@ -245,7 +291,7 @@ export default function PublicProfile() {
                   <Heart className="w-6 h-6 text-primary" />
                   Supported Projects
                 </h2>
-                <div className="bg-white rounded-3xl p-12 text-center border-2 border-dashed border-muted">
+                <div className="bg-card rounded-3xl p-12 text-center border-2 border-dashed border-muted">
                   <p className="text-sm font-bold text-muted-foreground">
                     This user has supported {supportedCount} projects on GW3!
                   </p>

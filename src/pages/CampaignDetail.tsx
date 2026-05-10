@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -223,6 +224,16 @@ export default function CampaignDetail() {
 
       if (error) throw error;
 
+      // Notify backend to send email
+      fetch("/api/notify/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          campaignId: id,
+          updateTitle: newUpdateTitle
+        })
+      }).catch(err => console.error("Notification error:", err));
+
       setUpdates([data, ...updates]);
       toast.success("Update posted successfully!");
       setIsUpdateModalOpen(false);
@@ -336,6 +347,18 @@ export default function CampaignDetail() {
 
       if (updateError) throw updateError;
 
+      // Notify backend to send email
+      fetch("/api/notify/backed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          campaignId: id,
+          backerName: session.user.user_metadata?.full_name || "A backer",
+          backerEmail: session.user.email,
+          pledgeAmount: totalAmount
+        })
+      }).catch(err => console.error("Notification error:", err));
+
       toast.success('Thank you for your support! Your pledge was successful.');
       setIsPledgeModalOpen(false);
       fetchCampaignData();
@@ -345,6 +368,19 @@ export default function CampaignDetail() {
     } finally {
       setIsPledging(false);
     }
+  };
+
+  const getEmbedUrl = (url: string) => {
+    if (!url) return null;
+    let videoId = "";
+    if (url.includes("youtube.com/watch?v=")) {
+      videoId = url.split("v=")[1]?.split("&")[0];
+    } else if (url.includes("youtu.be/")) {
+      videoId = url.split("youtu.be/")[1]?.split("?")[0];
+    } else if (url.includes("youtube.com/embed/")) {
+      return url;
+    }
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
   };
 
   if (loading) return (
@@ -395,7 +431,7 @@ export default function CampaignDetail() {
             <p className="text-muted-foreground font-medium mb-4">
               Your campaign was not approved. Please review the feedback below. You can edit your campaign and submit it again for review.
             </p>
-            <div className="bg-white/50 dark:bg-black/50 p-4 rounded-xl border border-destructive/20 text-sm">
+            <div className="bg-muted/50 p-4 rounded-xl border border-destructive/20 text-sm">
               <span className="font-bold block mb-1">Rejection Reason:</span>
               <p className="whitespace-pre-wrap">{campaign.rejection_reason || "No specific reason provided."}</p>
             </div>
@@ -423,10 +459,10 @@ export default function CampaignDetail() {
         <div className="grid lg:grid-cols-[1fr_400px] gap-16">
           {/* Main Content (Video/Image) */}
           <div className="space-y-10">
-            <div className="aspect-video rounded-3xl overflow-hidden bg-slate-900 shadow-2xl border border-white/5">
-              {campaign.pitch_video_url ? (
+            <div className="aspect-video rounded-3xl overflow-hidden bg-zinc-950 shadow-2xl border border-border/50">
+              {campaign.pitch_video_url && getEmbedUrl(campaign.pitch_video_url) ? (
                 <iframe 
-                  src={campaign.pitch_video_url.replace("watch?v=", "embed/")} 
+                   src={getEmbedUrl(campaign.pitch_video_url)!} 
                   className="w-full h-full"
                   allowFullScreen
                 />
@@ -443,7 +479,7 @@ export default function CampaignDetail() {
             <div className="flex flex-wrap items-center justify-between gap-6 p-6 bg-muted/30 rounded-2xl border">
               <div className="flex items-center gap-4">
                 <Link to={`/profile/${creator?.id}`}>
-                  <Avatar className="h-14 w-14 border-4 border-background shadow-sm hover:scale-105 transition-transform">
+                  <Avatar className="h-14 w-14 border-4 border-card shadow-sm hover:scale-105 transition-transform">
                     <AvatarImage src={creator?.avatar_url || ""} />
                     <AvatarFallback className="bg-primary text-white font-bold">{creator?.full_name?.charAt(0) || "C"}</AvatarFallback>
                   </Avatar>
@@ -611,19 +647,19 @@ export default function CampaignDetail() {
                     </h2>
                   </div>
                   
-                  <div className="flex flex-col md:flex-row gap-10 p-10 bg-white dark:bg-slate-900 rounded-[2.5rem] border border-border/60 shadow-sm relative overflow-hidden group">
+                  <div className="flex flex-col md:flex-row gap-10 p-10 bg-card rounded-[2.5rem] border border-border/60 shadow-sm relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32 group-hover:bg-primary/10 transition-colors"></div>
                     
                     <div className="shrink-0 flex flex-col items-center gap-4">
                       <Link to={`/profile/${creator?.id}`} className="relative">
-                        <Avatar className="h-32 w-32 border-4 border-background shadow-xl hover:scale-105 transition-transform duration-300">
+                        <Avatar className="h-32 w-32 border-4 border-card shadow-xl hover:scale-105 transition-transform duration-300">
                           <AvatarImage src={creator?.avatar_url || ""} />
                           <AvatarFallback className="text-4xl bg-primary text-white font-black">
                             {creator?.full_name?.charAt(0) || "C"}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="absolute bottom-1 right-1 bg-white dark:bg-slate-900 p-2 rounded-full shadow-lg border border-border/50">
-                          <div className="bg-green-500 w-4 h-4 rounded-full border-2 border-white dark:border-slate-900"></div>
+                        <div className="absolute bottom-1 right-1 bg-card p-2 rounded-full shadow-lg border border-border/50">
+                          <div className="bg-green-500 w-4 h-4 rounded-full border-2 border-card"></div>
                         </div>
                       </Link>
                     </div>

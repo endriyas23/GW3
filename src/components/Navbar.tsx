@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { 
@@ -30,6 +31,15 @@ export default function Navbar({ session }: { session: Session | null }) {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
   const { t, i18n } = useTranslation();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/explore?q=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery("");
+    }
+  };
 
   const handleLanguageChange = (lang: string) => {
     i18n.changeLanguage(lang);
@@ -72,6 +82,19 @@ export default function Navbar({ session }: { session: Session | null }) {
             <Link to="/browse" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">{t("explore") || "Explore"}</Link>
             <Link to="/how-it-works" className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">{t("how_it_works") || "How it works"}</Link>
           </div>
+        </div>
+
+        <div className="hidden md:flex flex-1 max-w-[200px] lg:max-w-md mx-4 lg:mx-8">
+          <form onSubmit={handleSearch} className="relative w-full group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            <Input 
+              type="text"
+              placeholder="Search projects..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-10 pl-9 bg-muted/50 border-none shadow-none hover:bg-muted focus-visible:ring-1 focus-visible:ring-primary rounded-full transition-all text-sm"
+            />
+          </form>
         </div>
 
         <div className="flex items-center gap-5">

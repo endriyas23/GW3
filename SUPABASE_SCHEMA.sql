@@ -54,7 +54,9 @@ CREATE TABLE rewards (
   estimated_delivery TEXT NOT NULL,
   quantity_limit INTEGER,
   quantity_claimed INTEGER DEFAULT 0 NOT NULL,
-  shipping_regions TEXT[] DEFAULT '{}'
+  shipping_type TEXT DEFAULT 'none' CHECK (shipping_type IN ('none', 'specific', 'worldwide')),
+  shipping_regions JSONB DEFAULT '[]',
+  worldwide_shipping_cost NUMERIC DEFAULT 0
 );
 
 -- Campaign Team Members Table
@@ -167,6 +169,10 @@ CREATE POLICY "Public campaigns are viewable by everyone" ON campaigns FOR SELEC
 );
 CREATE POLICY "Creators can insert own campaigns" ON campaigns FOR INSERT WITH CHECK (auth.uid() = creator_id);
 CREATE POLICY "Creators can update own campaigns" ON campaigns FOR UPDATE USING (
+  auth.uid() = creator_id OR 
+  (SELECT role FROM profiles WHERE id = auth.uid()) = 'admin'
+);
+CREATE POLICY "Creators can delete own campaigns" ON campaigns FOR DELETE USING (
   auth.uid() = creator_id OR 
   (SELECT role FROM profiles WHERE id = auth.uid()) = 'admin'
 );

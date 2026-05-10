@@ -1,10 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Trans, useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { 
   ArrowRight, 
   TrendingUp, 
@@ -47,13 +46,11 @@ const CATEGORIES = [
 ];
 
 export default function Home() {
-  const navigate = useNavigate();
   const { t } = useTranslation();
   const [featuredCampaigns, setFeaturedCampaigns] = useState<Campaign[]>([]);
   const [trendingCampaigns, setTrendingCampaigns] = useState<Campaign[]>([]);
   const [recentCampaigns, setRecentCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -138,31 +135,6 @@ export default function Home() {
               {t("home_hero_subtitle") || "Join a global community of creators and backers. Fund the next generation of technology, design, and social impact."}
             </p>
             
-            <div className="relative max-w-xl mb-10 group shadow-2xl shadow-primary/10 rounded-2xl">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-zinc-400 group-focus-within:text-primary transition-colors" />
-              <Input 
-                placeholder={t("search_placeholder") || "Search for projects, creators, or categories..."}
-                className="h-16 pl-14 pr-36 text-lg bg-white/5 border-white/10 text-white placeholder:text-zinc-500 focus:bg-white focus:text-zinc-950 transition-all duration-300 rounded-2xl ring-offset-zinc-950"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && searchQuery.trim()) {
-                    navigate(`/explore?q=${encodeURIComponent(searchQuery.trim())}`);
-                  }
-                }}
-              />
-              <Button 
-                className="absolute right-2 top-2 bottom-2 px-8 rounded-xl font-bold transition-all hover:scale-[0.98]"
-                onClick={() => {
-                  if (searchQuery.trim()) {
-                    navigate(`/explore?q=${encodeURIComponent(searchQuery.trim())}`);
-                  }
-                }}
-              >
-                Search
-              </Button>
-            </div>
-
             <div className="flex flex-wrap gap-4">
               <Button size="lg" className="h-14 px-8 text-base font-semibold shadow-[0_0_40px_rgba(79,70,229,0.3)] hover:shadow-[0_0_60px_rgba(79,70,229,0.5)] transition-all duration-300" render={<Link to="/explore" />} nativeButton={false}>
                 {t("explore_campaigns") || "Explore Campaigns"}
@@ -199,43 +171,59 @@ export default function Home() {
                 <div key={i} className="h-[400px] bg-muted animate-pulse rounded-2xl" />
               ))
             ) : (
-              featuredCampaigns.map(campaign => (
-                <Link key={campaign.id} to={`/campaigns/${campaign.id}`} className="group outline-none">
-                  <Card className="h-full hover:-translate-y-1.5 transition-transform duration-300 ease-out">
-                    <div className="relative h-52 overflow-hidden bg-muted">
-                      <img 
-                        src={campaign.cover_image_url || `https://picsum.photos/seed/${campaign.id}/800/600`} 
-                        alt={campaign.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
-                        referrerPolicy="no-referrer"
-                      />
-                      <Badge className="absolute top-3 right-3 bg-white/95 text-foreground border-none font-bold shadow-sm backdrop-blur-md">
-                        {campaign.category}
-                      </Badge>
-                    </div>
-                    <CardHeader className="p-6 pb-2">
-                      <h3 className="text-lg font-bold line-clamp-1 group-hover:text-primary transition-colors">{campaign.title}</h3>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                        {campaign.tagline}
-                      </p>
-                    </CardHeader>
-                    <CardContent className="p-6 pt-2 mt-auto">
-                      <div className="space-y-4">
-                        <Progress value={campaign.funding_goal > 0 ? (campaign.amount_raised / campaign.funding_goal) * 100 : 0} className="h-2 rounded-full" />
-                        <div className="flex justify-between items-center text-sm">
-                          <div className="flex flex-col">
-                            <span className="font-extrabold text-base">${campaign.amount_raised.toLocaleString()}</span>
-                            <span className="text-muted-foreground text-xs font-medium">raised</span>
+              featuredCampaigns.map((campaign, index) => (
+                <motion.div
+                  key={campaign.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Link to={`/campaigns/${campaign.id}`} className="group outline-none block h-full">
+                    <Card className="h-full hover:border-primary hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300 rounded-[2rem] overflow-hidden">
+                      <div className="relative h-52 overflow-hidden bg-muted">
+                        <img 
+                          src={campaign.cover_image_url || `https://picsum.photos/seed/${campaign.id}/800/600`} 
+                          alt={campaign.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                          referrerPolicy="no-referrer"
+                        />
+                        <Badge className="absolute top-3 right-3 bg-card/95 text-foreground border-none font-bold shadow-sm backdrop-blur-md">
+                          {campaign.category}
+                        </Badge>
+                      </div>
+                      <CardHeader className="p-6 pb-2">
+                        <h3 className="text-lg font-bold line-clamp-1 group-hover:text-primary transition-colors">{campaign.title}</h3>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                          {campaign.tagline}
+                        </p>
+                      </CardHeader>
+                      <CardContent className="p-6 pt-2 mt-auto">
+                        <div className="space-y-4">
+                          <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              whileInView={{ width: `${Math.min(campaign.funding_goal > 0 ? (campaign.amount_raised / campaign.funding_goal) * 100 : 0, 100)}%` }}
+                              viewport={{ once: true }}
+                              transition={{ duration: 1.5, ease: "easeOut", delay: index * 0.1 + 0.3 }}
+                              className="h-full bg-primary"
+                            />
                           </div>
-                          <div className="flex flex-col items-end">
-                            <span className="font-extrabold text-base text-primary">{Math.round(campaign.funding_goal > 0 ? (campaign.amount_raised / campaign.funding_goal) * 100 : 0)}%</span>
-                            <span className="text-muted-foreground text-xs font-medium">funded</span>
+                          <div className="flex justify-between items-center text-sm">
+                            <div className="flex flex-col">
+                              <span className="font-extrabold text-base">${campaign.amount_raised.toLocaleString()}</span>
+                              <span className="text-muted-foreground text-xs font-medium">raised</span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="font-extrabold text-base text-primary">{Math.round(campaign.funding_goal > 0 ? (campaign.amount_raised / campaign.funding_goal) * 100 : 0)}%</span>
+                              <span className="text-muted-foreground text-xs font-medium">funded</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </motion.div>
               ))
             )}
           </div>
@@ -253,16 +241,23 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {CATEGORIES.map((cat, i) => (
-              <Link 
-                key={i} 
-                to={`/explore/${cat.name.toLowerCase()}`}
-                className="flex flex-col items-center justify-center p-8 bg-card rounded-2xl border border-border/50 hover:border-primary/50 shadow-sm hover:shadow-[var(--shadow-premium-hover)] hover:-translate-y-1 transition-all duration-300 group outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.05 }}
               >
-                <div className="w-14 h-14 bg-primary/5 text-primary rounded-2xl flex items-center justify-center mb-5 group-hover:bg-primary group-hover:text-white transition-colors duration-300">
-                  {cat.icon}
-                </div>
-                <span className="font-bold text-sm tracking-wide">{cat.name}</span>
-              </Link>
+                <Link 
+                  to={`/explore/${cat.name.toLowerCase()}`}
+                  className="flex flex-col items-center justify-center p-8 bg-card rounded-2xl border border-border/50 hover:border-primary/50 shadow-sm hover:shadow-[var(--shadow-premium-hover)] hover:-translate-y-1 transition-all duration-300 group outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 w-full h-full"
+                >
+                  <div className="w-14 h-14 bg-primary/5 text-primary rounded-2xl flex items-center justify-center mb-5 group-hover:bg-primary group-hover:text-white transition-colors duration-300">
+                    {cat.icon}
+                  </div>
+                  <span className="font-bold text-sm tracking-wide">{cat.name}</span>
+                </Link>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -287,49 +282,65 @@ export default function Home() {
                 <div key={i} className="h-[450px] bg-muted animate-pulse rounded-2xl" />
               ))
             ) : (
-              trendingCampaigns.map(campaign => (
-                <Link key={campaign.id} to={`/campaigns/${campaign.id}`} className="group">
-                  <Card className="h-full overflow-hidden border-none shadow-sm hover:shadow-xl transition-all duration-300">
-                    <div className="relative h-56 overflow-hidden">
-                      <img 
-                        src={campaign.cover_image_url || `https://picsum.photos/seed/${campaign.id}/800/600`} 
-                        alt={campaign.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        referrerPolicy="no-referrer"
-                      />
-                      <Badge className="absolute top-4 left-4 bg-primary text-white border-none font-bold">
-                        Trending
-                      </Badge>
-                    </div>
-                    <CardHeader className="p-6 pb-2">
-                      <h3 className="text-xl font-bold line-clamp-1 group-hover:text-primary transition-colors">{campaign.title}</h3>
-                      <p className="text-muted-foreground line-clamp-2 min-h-[3rem]">
-                        {campaign.tagline}
-                      </p>
-                    </CardHeader>
-                    <CardContent className="p-6 pt-0">
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm font-bold">
-                            <span>${campaign.amount_raised.toLocaleString()}</span>
-                            <span className="text-primary">{Math.round(campaign.funding_goal > 0 ? (campaign.amount_raised / campaign.funding_goal) * 100 : 0)}%</span>
-                          </div>
-                          <Progress value={campaign.funding_goal > 0 ? (campaign.amount_raised / campaign.funding_goal) * 100 : 0} className="h-2" />
-                        </div>
-                        <div className="flex justify-between items-center pt-2 border-t">
-                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                            <Users className="w-4 h-4" />
-                            <span className="font-medium">{campaign.backer_count} backers</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                            <TrendingUp className="w-4 h-4 text-primary" />
-                            <span className="font-medium">Hot</span>
-                          </div>
-                        </div>
+              trendingCampaigns.map((campaign, index) => (
+                <motion.div
+                  key={campaign.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Link to={`/campaigns/${campaign.id}`} className="group block h-full">
+                    <Card className="h-full overflow-hidden border-none shadow-sm hover:shadow-xl transition-all duration-300 rounded-[2rem]">
+                      <div className="relative h-56 overflow-hidden">
+                        <img 
+                          src={campaign.cover_image_url || `https://picsum.photos/seed/${campaign.id}/800/600`} 
+                          alt={campaign.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          referrerPolicy="no-referrer"
+                        />
+                        <Badge className="absolute top-4 left-4 bg-primary text-white border-none font-bold">
+                          Trending
+                        </Badge>
                       </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+                      <CardHeader className="p-6 pb-2">
+                        <h3 className="text-xl font-bold line-clamp-1 group-hover:text-primary transition-colors">{campaign.title}</h3>
+                        <p className="text-muted-foreground line-clamp-2 min-h-[3rem]">
+                          {campaign.tagline}
+                        </p>
+                      </CardHeader>
+                      <CardContent className="p-6 pt-0">
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm font-bold">
+                              <span>${campaign.amount_raised.toLocaleString()}</span>
+                              <span className="text-primary">{Math.round(campaign.funding_goal > 0 ? (campaign.amount_raised / campaign.funding_goal) * 100 : 0)}%</span>
+                            </div>
+                            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                whileInView={{ width: `${Math.min(campaign.funding_goal > 0 ? (campaign.amount_raised / campaign.funding_goal) * 100 : 0, 100)}%` }}
+                                viewport={{ once: true }}
+                                transition={{ duration: 1.5, ease: "easeOut", delay: 0.2 }}
+                                className="h-full bg-primary"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center pt-2 border-t">
+                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                              <Users className="w-4 h-4" />
+                              <span className="font-medium">{campaign.backer_count} backers</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                              <TrendingUp className="w-4 h-4 text-primary" />
+                              <span className="font-medium">Hot</span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </motion.div>
               ))
             )}
           </div>

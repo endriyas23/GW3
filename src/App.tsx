@@ -74,7 +74,7 @@ export default function App() {
                 <Route path="/create" element={<CreateCampaign session={session} />} />
                 <Route path="/create/:id" element={<CreateCampaign session={session} />} />
                 <Route path="/profile" element={<Profile session={session} />} />
-                <Route path="/profile/:id" element={<PublicProfile />} />
+                <Route path="/profile/:id" element={<PublicProfile session={session} />} />
                 <Route path="/admin" element={<Admin session={session} />} />
                 <Route path="/auth/login" element={<Login />} />
                 <Route path="/auth/signup" element={<SignUp />} />

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { Session } from "@supabase/supabase-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,8 +24,14 @@ export default function Profile({ session }: { session: Session | null }) {
     location: "",
     avatar_url: "",
     default_shipping_address: "",
-    kyc_verified: false
+    kyc_verified: false,
+    website_url: "",
+    twitter_url: "",
+    github_url: ""
   });
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [updatingPassword, setUpdatingPassword] = useState(false);
 
   useEffect(() => {
     if (session) {
@@ -49,7 +56,10 @@ export default function Profile({ session }: { session: Session | null }) {
         location: data.location || "",
         avatar_url: data.avatar_url || "",
         default_shipping_address: data.default_shipping_address || "",
-        kyc_verified: data.kyc_verified || false
+        kyc_verified: data.kyc_verified || false,
+        website_url: data.website_url || "",
+        twitter_url: data.twitter_url || "",
+        github_url: data.github_url || ""
       });
     }
   };
@@ -115,7 +125,10 @@ export default function Profile({ session }: { session: Session | null }) {
           full_name: profile.full_name,
           bio: profile.bio,
           location: profile.location,
-          default_shipping_address: profile.default_shipping_address
+          default_shipping_address: profile.default_shipping_address,
+          website_url: profile.website_url,
+          twitter_url: profile.twitter_url,
+          github_url: profile.github_url
         })
         .eq("id", session?.user.id);
       
@@ -136,12 +149,47 @@ export default function Profile({ session }: { session: Session | null }) {
     }
   };
 
+  const handleChangePassword = async () => {
+    if (!newPassword) {
+      toast.error("Please enter a new password");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    setUpdatingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      if (error) throw error;
+      toast.success("Password updated successfully!");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setUpdatingPassword(false);
+    }
+  };
+
   if (!session) return null;
 
   return (
     <div className="container mx-auto px-4 py-12 max-w-4xl">
       <Breadcrumbs />
-      <h1 className="text-3xl font-bold mb-8">Profile Settings</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+        <h1 className="text-3xl font-bold">Profile Settings</h1>
+        <Button variant="outline" render={<Link to={`/profile/${session.user.id}`} />} nativeButton={false}>
+          View Public Profile
+        </Button>
+      </div>
       
       <div className="grid md:grid-cols-3 gap-8">
         <div className="md:col-span-1 space-y-6">
@@ -173,16 +221,6 @@ export default function Profile({ session }: { session: Session | null }) {
               </div>
               <h3 className="font-bold text-lg">{profile.full_name || "User"}</h3>
               <p className="text-sm text-muted-foreground mb-4">{session.user.email}</p>
-              <div className="flex flex-col gap-2">
-                {profile.kyc_verified ? (
-                  <Badge className="bg-green-500 hover:bg-green-600 mx-auto flex items-center gap-1">
-                    <ShieldCheck className="w-3 h-3" />
-                    Verified Creator
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary" className="mx-auto">Unverified</Badge>
-                )}
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -235,10 +273,83 @@ export default function Profile({ session }: { session: Session | null }) {
                   onChange={(e) => setProfile({...profile, default_shipping_address: e.target.value})}
                 />
               </div>
+              <div className="space-y-4 pt-4 border-t">
+                <h3 className="font-bold">Social Links</h3>
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="website_url">Website URL</Label>
+                    <Input 
+                      id="website_url" 
+                      placeholder="https://example.com"
+                      value={profile.website_url}
+                      onChange={(e) => setProfile({...profile, website_url: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="twitter_url">Twitter URL</Label>
+                    <Input 
+                      id="twitter_url" 
+                      placeholder="https://twitter.com/username"
+                      value={profile.twitter_url}
+                      onChange={(e) => setProfile({...profile, twitter_url: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="github_url">GitHub URL</Label>
+                    <Input 
+                      id="github_url" 
+                      placeholder="https://github.com/username"
+                      value={profile.github_url}
+                      onChange={(e) => setProfile({...profile, github_url: e.target.value})}
+                    />
+                  </div>
+                </div>
+              </div>
             </CardContent>
             <CardFooter className="border-t pt-6">
               <Button onClick={handleUpdate} disabled={loading}>
                 {loading ? "Saving..." : "Save Changes"}
+              </Button>
+            </CardFooter>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Security</CardTitle>
+              <CardDescription>Update your password to keep your account secure.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new_password">New Password</Label>
+                  <Input 
+                    id="new_password" 
+                    type="password" 
+                    placeholder="Min. 6 characters"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm_password">Confirm New Password</Label>
+                  <Input 
+                    id="confirm_password" 
+                    type="password" 
+                    placeholder="Confirm new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="border-t pt-6">
+              <Button onClick={handleChangePassword} disabled={updatingPassword} variant="default">
+                {updatingPassword ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : "Update Password"}
               </Button>
             </CardFooter>
           </Card>

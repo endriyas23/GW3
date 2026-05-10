@@ -107,6 +107,7 @@ const COUNTRIES = [
 ];
 
 import EmptyState from "@/components/EmptyState";
+import { CATEGORY_TREE } from "@/lib/constants";
 
 export default function Explore({ session }: { session: Session | null }) {
   const navigate = useNavigate();
@@ -118,6 +119,7 @@ export default function Explore({ session }: { session: Session | null }) {
   const category = urlCategory 
     ? (urlCategory.charAt(0).toUpperCase() + urlCategory.slice(1)) 
     : (searchParams.get("category") || "All");
+  const subcategory = searchParams.get("subcategory") || "all";
   const status = searchParams.get("status") || "all";
   const sort = searchParams.get("sort") || "trending";
   const minRaised = Number(searchParams.get("minRaised")) || 0;
@@ -312,7 +314,7 @@ export default function Explore({ session }: { session: Session | null }) {
     if (category === "All" && !query) {
       fetchStaffPicks();
     }
-  }, [category, status, sort, query, minRaised, maxRaised, minGoal, maxGoal, fundingModel, percentFunded, location, page]);
+  }, [category, subcategory, status, sort, query, minRaised, maxRaised, minGoal, maxGoal, fundingModel, percentFunded, location, page]);
 
   const fetchStaffPicks = async () => {
     if (!isSupabaseConfigured) return;
@@ -396,6 +398,9 @@ export default function Explore({ session }: { session: Session | null }) {
 
       if (category !== "All") {
         supabaseQuery = supabaseQuery.eq("category", category.toLowerCase());
+      }
+      if (subcategory !== "all") {
+        supabaseQuery = supabaseQuery.eq("subcategory", subcategory.toLowerCase());
       }
 
       if (query) {
@@ -514,10 +519,13 @@ export default function Explore({ session }: { session: Session | null }) {
     const currentCat = category.toLowerCase();
     const newCat = cat.toLowerCase();
     
+    const params = new URLSearchParams(searchParams);
+    params.delete("subcategory");
+    
     if (newCat === "all" || currentCat === newCat) {
-      navigate("/explore");
+      navigate({ pathname: "/explore", search: params.toString() });
     } else {
-      navigate(`/explore/${newCat}`);
+      navigate({ pathname: `/explore/${newCat}`, search: params.toString() });
     }
   };
 
@@ -530,7 +538,7 @@ export default function Explore({ session }: { session: Session | null }) {
     updateFilters({ [key]: null });
   };
 
-  const isFiltered = query || category !== "All" || status !== "all" || minRaised !== 0 || maxRaised !== 1000000 || minGoal !== 0 || maxGoal !== 1000000 || fundingModel !== "all" || percentFunded !== "any" || location !== "any" || searchParams.get("staff") === "true" || searchParams.get("video") === "true" || searchParams.get("limited") === "true" || searchParams.get("local") === "true";
+  const isFiltered = query || category !== "All" || subcategory !== "all" || status !== "all" || minRaised !== 0 || maxRaised !== 1000000 || minGoal !== 0 || maxGoal !== 1000000 || fundingModel !== "all" || percentFunded !== "any" || location !== "any" || searchParams.get("staff") === "true" || searchParams.get("video") === "true" || searchParams.get("limited") === "true" || searchParams.get("local") === "true";
 
   return (
     <div className="min-h-screen bg-background">
@@ -797,6 +805,33 @@ export default function Explore({ session }: { session: Session | null }) {
               <ScrollBar orientation="horizontal" />
             </ScrollArea>
             
+            {category !== "All" && CATEGORY_TREE.find(c => c.name.toLowerCase() === category.toLowerCase())?.subcategories && (
+              <ScrollArea className="w-full whitespace-nowrap pb-4">
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    variant={subcategory === "all" ? "default" : "secondary"}
+                    size="sm"
+                    className="rounded-full px-5 h-8 font-bold"
+                    onClick={() => updateFilters({ subcategory: "all" })}
+                  >
+                    All {category}
+                  </Button>
+                  {CATEGORY_TREE.find(c => c.name.toLowerCase() === category.toLowerCase())?.subcategories.map(sub => (
+                    <Button
+                      key={sub}
+                      variant={subcategory.toLowerCase() === sub.toLowerCase() ? "default" : "secondary"}
+                      size="sm"
+                      className="rounded-full px-5 h-8 font-bold text-xs"
+                      onClick={() => updateFilters({ subcategory: sub })}
+                    >
+                      {sub}
+                    </Button>
+                  ))}
+                </div>
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+            )}
+            
             <div className="hidden md:block shrink-0">
               <Select value={sort} onValueChange={(val) => updateFilters({ sort: val })}>
                 <SelectTrigger className="w-[180px] h-11 rounded-xl font-bold border-2">
@@ -832,29 +867,62 @@ export default function Explore({ session }: { session: Session | null }) {
                       const count = cat.name === "All" ? totalCount : (categoryCounts[cat.name.toLowerCase()] || 0);
                       
                       return (
-                        <div 
-                          key={cat.name} 
-                          className={`flex items-center space-x-3 group cursor-pointer p-2 rounded-xl transition-all ${
-                            isSelected ? "bg-primary/5 text-primary" : "hover:bg-muted/50"
-                          }`} 
-                          onClick={() => handleCategoryClick(cat.name)}
-                        >
-                          <div className={`p-1.5 rounded-lg transition-colors ${
-                            isSelected ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground group-hover:bg-background group-hover:text-primary"
-                          }`}>
-                            <cat.icon className="w-3.5 h-3.5" />
-                          </div>
-                          <Label 
-                            htmlFor={`filter-cat-${cat.name}`} 
-                            className={`text-sm font-bold cursor-pointer transition-colors flex justify-between w-full ${
-                              isSelected ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-                            }`}
+                        <div key={cat.name}>
+                          <div 
+                            className={`flex items-center space-x-3 group cursor-pointer p-2 rounded-xl transition-all ${
+                              isSelected ? "bg-primary/5 text-primary" : "hover:bg-muted/50"
+                            }`} 
+                            onClick={() => handleCategoryClick(cat.name)}
                           >
-                            <span>{cat.name}</span>
-                            <span className={`font-medium text-[10px] ${isSelected ? "text-primary/70" : "text-muted-foreground/60"}`}>
-                              {count}
-                            </span>
-                          </Label>
+                            <div className={`p-1.5 rounded-lg transition-colors ${
+                              isSelected ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground group-hover:bg-background group-hover:text-primary"
+                            }`}>
+                              <cat.icon className="w-3.5 h-3.5" />
+                            </div>
+                            <Label 
+                              htmlFor={`filter-cat-${cat.name}`} 
+                              className={`text-sm font-bold cursor-pointer transition-colors flex justify-between w-full ${
+                                isSelected ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                              }`}
+                            >
+                              <span>{cat.name}</span>
+                              <span className={`font-medium text-[10px] ${isSelected ? "text-primary/70" : "text-muted-foreground/60"}`}>
+                                {count}
+                              </span>
+                            </Label>
+                          </div>
+                          
+                          {/* Subcategories (only when selected) */}
+                          <AnimatePresence>
+                            {isSelected && cat.name !== "All" && CATEGORY_TREE.find(c => c.name.toLowerCase() === cat.name.toLowerCase())?.subcategories && (
+                              <motion.div 
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="pl-10 pr-2 pt-2 pb-1 space-y-1 overflow-hidden"
+                              >
+                                <div 
+                                  className={`text-sm py-1.5 px-2 rounded-lg cursor-pointer transition-colors ${
+                                    subcategory === "all" ? "bg-primary/10 text-primary font-bold" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                  }`}
+                                  onClick={() => updateFilters({ subcategory: "all" })}
+                                >
+                                  All {cat.name}
+                                </div>
+                                {CATEGORY_TREE.find(c => c.name.toLowerCase() === cat.name.toLowerCase())?.subcategories.map(sub => (
+                                  <div 
+                                    key={sub}
+                                    className={`text-sm py-1.5 px-2 rounded-lg cursor-pointer transition-colors ${
+                                      subcategory.toLowerCase() === sub.toLowerCase() ? "bg-primary/10 text-primary font-bold" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                    }`}
+                                    onClick={() => updateFilters({ subcategory: sub })}
+                                  >
+                                    {sub}
+                                  </div>
+                                ))}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                       );
                     })}
@@ -1212,6 +1280,14 @@ export default function Explore({ session }: { session: Session | null }) {
                     <Badge variant="secondary" className="pl-3 pr-1 py-1 rounded-full font-bold bg-primary/10 text-primary border-none flex items-center gap-1">
                       {category}
                       <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full hover:bg-primary/20" onClick={() => handleCategoryClick("All")}>
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </Badge>
+                  )}
+                  {subcategory !== "all" && (
+                    <Badge variant="secondary" className="pl-3 pr-1 py-1 rounded-full font-bold bg-primary/10 text-primary border-none flex items-center gap-1">
+                      {subcategory}
+                      <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full hover:bg-primary/20" onClick={() => removeFilter("subcategory")}>
                         <X className="w-3 h-3" />
                       </Button>
                     </Badge>
